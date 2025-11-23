@@ -13,6 +13,10 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
   const [isFlashing, setIsFlashing] = useState(false);
   const [shutterPressed, setShutterPressed] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  
+  // Printing animation state
+  const [printingPhoto, setPrintingPhoto] = useState<string | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const startCamera = useCallback(async () => {
     try {
@@ -50,7 +54,7 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
   }, [facingMode]);
 
   const handleCapture = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current || isPrinting) return;
 
     setShutterPressed(true);
     setTimeout(() => setShutterPressed(false), 150);
@@ -95,7 +99,23 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
       context.restore();
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      onCapture(dataUrl);
+      
+      // Start printing animation
+      setPrintingPhoto(dataUrl);
+      
+      // Delay slightly to allow DOM render before triggering transition
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsPrinting(true);
+        });
+      });
+
+      // Wait for animation to finish before adding to gallery
+      setTimeout(() => {
+        onCapture(dataUrl);
+        setPrintingPhoto(null);
+        setIsPrinting(false);
+      }, 3500); // 3.5s total duration matching CSS
     }
   };
 
@@ -104,9 +124,9 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
   };
 
   return (
-    <div className="relative w-full max-w-[360px] mx-auto perspective-1000 select-none">
-      {/* Main Camera Body */}
-      <div className="relative bg-[#Fdfdfd] rounded-[2.5rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.4),inset_0_-4px_6px_rgba(0,0,0,0.1)] border border-gray-200 aspect-[4/5] flex flex-col items-center overflow-hidden transform transition-transform duration-300">
+    <div className="relative w-full max-w-[360px] mx-auto perspective-1000 select-none mb-20">
+      {/* Main Camera Body - Added z-20 to sit on top of printing photo */}
+      <div className="relative z-20 bg-[#Fdfdfd] rounded-[2.5rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.4),inset_0_-4px_6px_rgba(0,0,0,0.1)] border border-gray-200 aspect-[4/5] flex flex-col items-center overflow-hidden transform transition-transform duration-300">
         
         {/* Top Section: Viewfinder & Flash */}
         <div className="w-full h-1/3 bg-[#f8f8f8] border-b border-gray-200 relative flex justify-between px-8 pt-6">
@@ -183,7 +203,8 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
             {/* Red Shutter Button */}
             <button 
                 onClick={handleCapture}
-                className={`absolute right-6 bottom-8 w-16 h-16 rounded-full border-4 border-[#d1d5db] bg-[#e11d48] shadow-[0_4px_0_#9f1239,0_8px_10px_rgba(0,0,0,0.3)] transition-all ${shutterPressed ? 'translate-y-1 shadow-[0_2px_0_#9f1239,inset_0_2px_5px_rgba(0,0,0,0.4)]' : 'hover:bg-[#f43f5e]'} z-30 flex items-center justify-center`}
+                disabled={isPrinting}
+                className={`absolute right-6 bottom-8 w-16 h-16 rounded-full border-4 border-[#d1d5db] bg-[#e11d48] shadow-[0_4px_0_#9f1239,0_8px_10px_rgba(0,0,0,0.3)] transition-all ${shutterPressed ? 'translate-y-1 shadow-[0_2px_0_#9f1239,inset_0_2px_5px_rgba(0,0,0,0.4)]' : 'hover:bg-[#f43f5e]'} ${isPrinting ? 'opacity-50 cursor-not-allowed' : ''} z-30 flex items-center justify-center`}
                 aria-label="Take Photo"
             >
                 <div className="w-12 h-12 rounded-full border-2 border-white/20 bg-gradient-to-br from-white/30 to-transparent"></div>
@@ -200,10 +221,8 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
         </div>
 
         {/* Bottom Eject Slot */}
-        <div className="w-full h-12 bg-[#222] mt-auto border-t-4 border-[#111] relative">
+        <div className="w-full h-12 bg-[#222] mt-auto border-t-4 border-[#111] relative z-20">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-2 bg-[#000] rounded-full shadow-[0_1px_0_rgba(255,255,255,0.1)]"></div>
-             {/* Ejecting Animation Placeholder (Optional) */}
-             <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-48 h-0 bg-white transition-all duration-500 ${isFlashing ? 'h-4 opacity-100' : 'h-0 opacity-0'}`}></div>
         </div>
         
         {/* Brand Label */}
@@ -212,6 +231,25 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
         </div>
 
       </div>
+      
+      {/* Printing Animation Layer - Behind camera (z-10) */}
+      {printingPhoto && (
+        <div 
+          className={`absolute bottom-6 left-1/2 -translate-x-1/2 w-3/4 z-10 transition-transform duration-[3500ms] ease-linear will-change-transform ${isPrinting ? 'translate-y-[115%]' : 'translate-y-0'}`}
+        >
+           <div className="bg-white p-3 pb-8 shadow-2xl rounded-sm border border-gray-200">
+               <div className="aspect-[4/5] bg-gray-900 relative overflow-hidden">
+                    {/* Initially darker to simulate developing? Optional, keep it simple for now */}
+                    <img src={printingPhoto} alt="Printing" className="w-full h-full object-cover animate-pulse" style={{ animationDuration: '2s' }} />
+                    <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] pointer-events-none"></div>
+               </div>
+               {/* Placeholder for text lines */}
+               <div className="mt-2 space-y-1 opacity-30">
+                  <div className="h-1 bg-gray-300 w-full rounded"></div>
+               </div>
+           </div>
+        </div>
+      )}
       
       {/* Strap Lugs */}
       <div className="absolute top-16 -left-2 w-4 h-10 bg-gray-300 rounded-l-md border border-gray-400 shadow-sm z-[-1]"></div>
