@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import RetroCamera from './components/RetroCamera';
 import Gallery from './components/Gallery';
 import { Photo } from './types';
-import { Sparkles, Share, PlusSquare, X } from 'lucide-react';
+import { Sparkles, Share, PlusSquare, X, AlertCircle } from 'lucide-react';
 
 // Install Guide Component
 const InstallGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => (
@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [storageError, setStorageError] = useState(false);
 
   // Check if running in standalone mode (installed)
   useEffect(() => {
@@ -71,7 +72,16 @@ const App: React.FC = () => {
 
   // Save to local storage on change
   useEffect(() => {
-    localStorage.setItem('retro-photos', JSON.stringify(photos));
+    try {
+      localStorage.setItem('retro-photos', JSON.stringify(photos));
+      setStorageError(false);
+    } catch (e) {
+      console.error("Failed to save photos - storage full?", e);
+      // If storage is full, we set an error state but DO NOT crash the app
+      if (photos.length > 0) {
+        setStorageError(true);
+      }
+    }
   }, [photos]);
 
   const handleCapture = (dataUrl: string) => {
@@ -96,6 +106,8 @@ const App: React.FC = () => {
   const handleReset = () => {
       if(window.confirm("Clear all photos?")) {
           setPhotos([]);
+          localStorage.removeItem('retro-photos');
+          setStorageError(false);
       }
   }
 
@@ -138,6 +150,17 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 w-full max-w-md flex flex-col gap-8 p-4 pb-12">
         
+        {/* Storage Warning */}
+        {storageError && (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-start gap-3 text-sm text-orange-800 animate-in fade-in slide-in-from-top-2">
+            <AlertCircle className="shrink-0 mt-0.5" size={18} />
+            <div>
+              <span className="font-bold block">Storage Full</span>
+              New photos won't be saved after you close the app. Please delete some old photos.
+            </div>
+          </div>
+        )}
+
         {/* Section 1: Camera */}
         <div className="mt-2 flex flex-col items-center">
            <RetroCamera onCapture={handleCapture} />

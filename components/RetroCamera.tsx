@@ -67,38 +67,44 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
     const context = canvas.getContext('2d');
 
     if (context) {
-      const size = Math.min(video.videoWidth, video.videoHeight);
-      canvas.width = size;
-      canvas.height = size;
+      // OPTIMIZATION: Limit resolution to prevent crashing local storage
+      const sourceSize = Math.min(video.videoWidth, video.videoHeight);
+      const maxOutputSize = 800; // Limit max width/height to 800px
+      const outputSize = Math.min(sourceSize, maxOutputSize);
+      
+      canvas.width = outputSize;
+      canvas.height = outputSize;
 
-      const startX = (video.videoWidth - size) / 2;
-      const startY = (video.videoHeight - size) / 2;
+      const startX = (video.videoWidth - sourceSize) / 2;
+      const startY = (video.videoHeight - sourceSize) / 2;
 
       context.save();
       if (facingMode === 'user') {
-        context.translate(size, 0);
+        context.translate(outputSize, 0);
         context.scale(-1, 1);
       }
-      // Draw video
-      context.drawImage(video, startX, startY, size, size, 0, 0, size, size);
+      
+      // Draw video scaled to output size
+      context.drawImage(video, startX, startY, sourceSize, sourceSize, 0, 0, outputSize, outputSize);
       
       // Vintage Filter
       // 1. Warm overlay
       context.fillStyle = 'rgba(255, 240, 200, 0.15)'; 
       context.globalCompositeOperation = 'overlay';
-      context.fillRect(0, 0, size, size);
+      context.fillRect(0, 0, outputSize, outputSize);
       
       // 2. Soft contrast/vignette
-      const gradient = context.createRadialGradient(size/2, size/2, size/3, size/2, size/2, size);
+      const gradient = context.createRadialGradient(outputSize/2, outputSize/2, outputSize/3, outputSize/2, outputSize/2, outputSize);
       gradient.addColorStop(0, 'rgba(0,0,0,0)');
       gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
       context.globalCompositeOperation = 'source-over';
       context.fillStyle = gradient;
-      context.fillRect(0, 0, size, size);
+      context.fillRect(0, 0, outputSize, outputSize);
 
       context.restore();
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      // Compress JPEG quality to 0.8 to further save space
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
       
       // Start printing animation
       setPrintingPhoto(dataUrl);
