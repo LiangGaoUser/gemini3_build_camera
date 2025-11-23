@@ -8,6 +8,8 @@ interface RetroCameraProps {
 const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const shutterSoundRef = useRef<HTMLAudioElement | null>(null);
+  
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
@@ -17,6 +19,15 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
   // Printing animation state
   const [printingPhoto, setPrintingPhoto] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+
+  // Preload shutter sound
+  useEffect(() => {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2578/2578-preview.mp3');
+    audio.volume = 0.6;
+    shutterSoundRef.current = audio;
+    // Attempt to load
+    audio.load();
+  }, []);
 
   const startCamera = useCallback(async () => {
     try {
@@ -55,6 +66,12 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
 
   const handleCapture = () => {
     if (!videoRef.current || !canvasRef.current || isPrinting) return;
+
+    // 1. Play Shutter Sound immediately
+    if (shutterSoundRef.current) {
+      shutterSoundRef.current.currentTime = 0;
+      shutterSoundRef.current.play().catch(e => console.warn("Shutter sound play failed", e));
+    }
 
     setShutterPressed(true);
     setTimeout(() => setShutterPressed(false), 150);
@@ -121,6 +138,15 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
         onCapture(dataUrl);
         setPrintingPhoto(null);
         setIsPrinting(false);
+
+        // 2. Play "Capture Complete" voice prompt
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel(); // Clear queue to speak immediately
+            const utterance = new SpeechSynthesisUtterance("拍摄完成");
+            utterance.lang = 'zh-CN';
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
       }, 3500); // 3.5s total duration matching CSS
     }
   };
