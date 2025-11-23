@@ -141,24 +141,21 @@ const App: React.FC = () => {
       {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
 
       {/* App Bar */}
-      <header className="sticky top-0 w-full bg-white/80 backdrop-blur-md p-4 flex justify-between items-center z-50 shadow-sm border-b border-white/50 h-16">
-        <div className="flex items-center gap-2">
-           <div className="bg-gradient-to-tr from-orange-400 to-pink-500 p-1.5 rounded-lg text-white shadow-sm">
-               <Sparkles size={18} fill="currentColor" />
+      <header className="sticky top-0 w-full bg-white/80 backdrop-blur-md px-4 flex items-center justify-between z-50 shadow-sm border-b border-white/50 h-16 relative">
+        
+        {/* Left Spacer (to balance layout for centering) */}
+        <div className="w-16"></div>
+
+        {/* Centered Title */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+           <div className="bg-gradient-to-tr from-orange-400 to-pink-500 p-1.5 rounded-full text-white shadow-sm">
+               <Sparkles size={16} fill="currentColor" />
            </div>
-           <h1 className="text-lg font-bold text-gray-800 tracking-tight">RetroCam</h1>
+           <h1 className="text-xl font-bold text-gray-800 tracking-widest font-sans">日常留念</h1>
         </div>
         
-        <div className="flex items-center gap-2">
-            {!isStandalone && (
-                <button 
-                    onClick={() => setShowInstallGuide(true)}
-                    className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 hover:bg-blue-100 transition-colors mr-1"
-                >
-                    Install App
-                </button>
-            )}
-
+        {/* Right Side Actions */}
+        <div className="w-16 flex justify-end">
             {photos.length > 0 && (
                 <button 
                     onClick={handleReset}
