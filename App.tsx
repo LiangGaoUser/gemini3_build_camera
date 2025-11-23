@@ -84,6 +84,34 @@ const App: React.FC = () => {
     }
   }, [photos]);
 
+  // Voice Greeting Effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Check if browser supports speech synthesis
+      if ('speechSynthesis' in window) {
+        // Cancel any previous speech to prevent overlapping/queueing
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance("徐雨晖和梁高请看镜头，茄子");
+        utterance.lang = 'zh-CN'; // Force Chinese
+        utterance.rate = 0.9; // Slightly slower for better clarity
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+
+        // Attempt to speak
+        // Note: Browsers may block this if user hasn't interacted with the page yet
+        window.speechSynthesis.speak(utterance);
+      }
+    }, 3000);
+
+    return () => {
+      clearTimeout(timer);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   const handleCapture = (dataUrl: string) => {
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
