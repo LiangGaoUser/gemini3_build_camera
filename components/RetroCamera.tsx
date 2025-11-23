@@ -22,10 +22,13 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
 
   // Preload shutter sound
   useEffect(() => {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2578/2578-preview.mp3');
-    audio.volume = 0.6;
+    // Use a reliable, short shutter sound from Pixabay
+    const audio = new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a73467.mp3');
+    audio.volume = 1.0;
+    audio.preload = 'auto';
     shutterSoundRef.current = audio;
-    // Attempt to load
+    
+    // Attempt to load immediately
     audio.load();
   }, []);
 
@@ -69,8 +72,17 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
 
     // 1. Play Shutter Sound immediately
     if (shutterSoundRef.current) {
-      shutterSoundRef.current.currentTime = 0;
-      shutterSoundRef.current.play().catch(e => console.warn("Shutter sound play failed", e));
+      const sound = shutterSoundRef.current;
+      // Reset time to 0 to allow rapid firing if needed
+      sound.currentTime = 0;
+      const playPromise = sound.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.warn("Shutter sound playback failed:", error);
+          // Fallback: Try playing again without resetting currentTime if that was the issue
+        });
+      }
     }
 
     setShutterPressed(true);
