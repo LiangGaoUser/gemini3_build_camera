@@ -4,7 +4,6 @@ import RetroCamera from './components/RetroCamera';
 import Gallery from './components/Gallery';
 import { Photo } from './types';
 import { Sparkles, Share, PlusSquare, X, AlertCircle } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 
 // Install Guide Component
 const InstallGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => (
@@ -106,64 +105,6 @@ const App: React.FC = () => {
     }
   };
 
-  const analyzePhotoContent = async (photoId: string, base64Image: string) => {
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      // Clean base64 string
-      const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-      
-      // Get current time for context
-      const now = new Date();
-      const timeString = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-
-      const prompt = `
-        请仔细观察这张照片。
-        你的任务是生成一个简短的、像拍立得照片备注一样的中文描述。
-        
-        严格遵守以下人物识别规则：
-        1. 如果看到男生，必须称呼他为“梁高”。
-        2. 如果看到女生，必须称呼她为“徐雨晖”。
-        3. 如果两人同时出现，必须称呼为“徐雨晖和梁高”。
-        4. 如果没有看到人，就描述风景或物体。
-
-        输出格式要求：
-        "[时间] [地点] [人物在做什么]"
-        
-        例如：
-        "14:30 家里 梁高在喝咖啡"
-        "09:15 公园里 徐雨晖和梁高在散步"
-        
-        当前时间是：${timeString}。请识别照片中的地点场景（如卧室、客厅、街道、海边等）。
-        描述要温馨、自然，不要太长（20字以内）。
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: {
-          parts: [
-             { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-             { text: prompt }
-          ]
-        }
-      });
-
-      const generatedCaption = response.text?.trim();
-
-      if (generatedCaption) {
-        setPhotos(prev => prev.map(p => 
-          p.id === photoId ? { ...p, caption: generatedCaption } : p
-        ));
-      }
-
-    } catch (error) {
-      console.error("AI Analysis failed:", error);
-      setPhotos(prev => prev.map(p => 
-        p.id === photoId ? { ...p, caption: "美好的一刻" } : p
-      ));
-    }
-  };
-
   const handleCapture = (dataUrl: string) => {
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -173,14 +114,11 @@ const App: React.FC = () => {
       id: id,
       dataUrl,
       timestamp: dateStr,
-      caption: "正在显影...", // Temporary caption while AI thinks
+      caption: "美好的瞬间", 
       rotation: Math.random() * 6 - 3,
     };
 
     setPhotos(prev => [...prev, newPhoto]);
-    
-    // Trigger AI analysis in background
-    analyzePhotoContent(id, dataUrl);
   };
 
   const handleDelete = (id: string) => {

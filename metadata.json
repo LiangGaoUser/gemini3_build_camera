@@ -2,7 +2,6 @@
   "name": "RetroCam Instant",
   "description": "A retro-styled instant camera app that captures moments like an old-school polaroid.",
   "requestFramePermissions": [
-    "camera",
-    "geolocation"
+    "camera"
   ]
 }
