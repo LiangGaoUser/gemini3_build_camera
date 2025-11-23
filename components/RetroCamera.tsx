@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { RefreshCw } from 'lucide-react';
 
@@ -8,7 +9,9 @@ interface RetroCameraProps {
 const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const shutterSoundRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Audio Context for synthesized sounds
+  const audioContextRef = useRef<AudioContext | null>(null);
   
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,17 +23,70 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
   const [printingPhoto, setPrintingPhoto] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // Preload shutter sound
+  // Initialize AudioContext
   useEffect(() => {
-    // Use a reliable, short shutter sound from Pixabay
-    const audio = new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a73467.mp3');
-    audio.volume = 1.0;
-    audio.preload = 'auto';
-    shutterSoundRef.current = audio;
-    
-    // Attempt to load immediately
-    audio.load();
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass();
+      }
+    } catch (e) {
+      console.error("Web Audio API not supported", e);
+    }
   }, []);
+
+  // Synthesize a realistic shutter sound using oscillators and noise
+  const playShutterSound = () => {
+    if (!audioContextRef.current) return;
+    
+    const ctx = audioContextRef.current;
+    
+    // Resume context if suspended (browser policy)
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    const t = ctx.currentTime;
+
+    // 1. High frequency "Click" (The mechanical latch)
+    // Create a buffer with random noise
+    const bufferSize = ctx.sampleRate * 0.05; // 50ms
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'highpass';
+    noiseFilter.frequency.value = 1000;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.5, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(t);
+
+    // 2. Low frequency "Clunk" (The mirror slap/shutter movement)
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(120, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0.6, t);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(t);
+  };
 
   const startCamera = useCallback(async () => {
     try {
@@ -70,20 +126,8 @@ const RetroCamera: React.FC<RetroCameraProps> = ({ onCapture }) => {
   const handleCapture = () => {
     if (!videoRef.current || !canvasRef.current || isPrinting) return;
 
-    // 1. Play Shutter Sound immediately
-    if (shutterSoundRef.current) {
-      const sound = shutterSoundRef.current;
-      // Reset time to 0 to allow rapid firing if needed
-      sound.currentTime = 0;
-      const playPromise = sound.play();
-      
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.warn("Shutter sound playback failed:", error);
-          // Fallback: Try playing again without resetting currentTime if that was the issue
-        });
-      }
-    }
+    // 1. Play Synthesized Shutter Sound
+    playShutterSound();
 
     setShutterPressed(true);
     setTimeout(() => setShutterPressed(false), 150);
