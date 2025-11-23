@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [storageError, setStorageError] = useState(false);
+  const [hasPlayedGreeting, setHasPlayedGreeting] = useState(false);
 
   // Check if running in standalone mode (installed)
   useEffect(() => {
@@ -84,33 +85,24 @@ const App: React.FC = () => {
     }
   }, [photos]);
 
-  // Voice Greeting Effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Check if browser supports speech synthesis
-      if ('speechSynthesis' in window) {
-        // Cancel any previous speech to prevent overlapping/queueing
+  // Handle first user interaction to play voice
+  const handleInteraction = () => {
+    if (hasPlayedGreeting) return;
+
+    if ('speechSynthesis' in window) {
+        // Cancel any previous speech
         window.speechSynthesis.cancel();
 
         const utterance = new SpeechSynthesisUtterance("徐雨晖和梁高请看镜头，茄子");
-        utterance.lang = 'zh-CN'; // Force Chinese
-        utterance.rate = 0.9; // Slightly slower for better clarity
+        utterance.lang = 'zh-CN'; 
+        utterance.rate = 0.9; 
         utterance.pitch = 1.0;
         utterance.volume = 1.0;
 
-        // Attempt to speak
-        // Note: Browsers may block this if user hasn't interacted with the page yet
         window.speechSynthesis.speak(utterance);
-      }
-    }, 3000);
-
-    return () => {
-      clearTimeout(timer);
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
+        setHasPlayedGreeting(true);
+    }
+  };
 
   const handleCapture = (dataUrl: string) => {
     const now = new Date();
@@ -140,7 +132,10 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#f0f2f5] flex flex-col items-center overflow-x-hidden font-sans">
+    <div 
+      className="min-h-screen w-full bg-[#f0f2f5] flex flex-col items-center overflow-x-hidden font-sans"
+      onClick={handleInteraction}
+    >
       
       {/* Install Guide Modal */}
       {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
